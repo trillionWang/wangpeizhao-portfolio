@@ -52,14 +52,14 @@ async function start() {
   await initDatabase();
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`API documentation:`);
-    console.log(`  POST /api/auth/login     - 登录`);
-    console.log(`  GET  /api/posts          - 获取文章列表`);
-    console.log(`  GET  /api/config         - 获取网站配置`);
-    console.log(`  GET  /api/songs          - 获取音乐列表`);
-    console.log(`  GET  /api/messages       - 获取留言`);
-    console.log(`  POST /api/ai/chat        - AI对话`);
-    console.log(`  GET  /api/health         - 健康检查`);
+    console.log(`API docs:`);
+    console.log(`  POST /api/auth/login`);
+    console.log(`  GET  /api/posts`);
+    console.log(`  GET  /api/config`);
+    console.log(`  GET  /api/songs`);
+    console.log(`  GET  /api/messages`);
+    console.log(`  POST /api/ai/chat`);
+    console.log(`  GET  /api/health`);
   });
 }
 
