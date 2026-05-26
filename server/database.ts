@@ -22,7 +22,16 @@ let data: any = {
 function loadFromJSON() {
   if (fs.existsSync(JSON_DB_PATH)) {
     try {
-      data = JSON.parse(fs.readFileSync(JSON_DB_PATH, 'utf-8'));
+      const loaded = JSON.parse(fs.readFileSync(JSON_DB_PATH, 'utf-8'));
+      data = {
+        users: [],
+        site_config: {},
+        posts: [],
+        songs: [],
+        messages: [],
+        diaries: [],
+        ...loaded,
+      };
     } catch {
       // use defaults
     }
@@ -224,6 +233,7 @@ export async function get(sql: string, params: any[] = []): Promise<any> {
   const table = extractTable(sql);
   if (!table) return null;
   const rows = data[table] || [];
+  if (!Array.isArray(rows)) return null;
   if (sql.includes('WHERE username =')) {
     return rows.find((r: any) => r.username === params[0]) || null;
   }
@@ -246,6 +256,7 @@ export async function all(sql: string, params: any[] = []): Promise<any[]> {
   const table = extractTable(sql);
   if (!table) return [];
   let rows = data[table] || [];
+  if (!Array.isArray(rows)) return [];
   // Sort by date desc
   if (sql.includes('ORDER BY date DESC') || sql.includes('ORDER BY created_at DESC')) {
     rows = [...rows].sort((a: any, b: any) => new Date(b.date || b.created_at).getTime() - new Date(a.date || a.created_at).getTime());
