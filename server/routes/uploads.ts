@@ -6,7 +6,7 @@ import { authMiddleware } from '../middleware/auth';
 import { findAll, insert, remove, MediaRecord } from '../database';
 
 const router = Router();
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.env.PERSISTENT_DIR || process.cwd(), 'uploads');
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -75,8 +75,9 @@ router.delete('/:id', authMiddleware, (req, res) => {
   const ok = remove('media', file => String(file.id) === String(req.params.id));
 
   if (ok && item?.filename) {
-    const filePath = path.join(UPLOAD_DIR, item.filename);
-    if (filePath.startsWith(UPLOAD_DIR) && fs.existsSync(filePath)) {
+    const filePath = path.resolve(UPLOAD_DIR, item.filename);
+    const uploadRoot = path.resolve(UPLOAD_DIR);
+    if (filePath.startsWith(uploadRoot) && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }

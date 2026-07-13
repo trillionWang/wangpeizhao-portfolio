@@ -19,10 +19,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.env.PERSISTENT_DIR || process.cwd(), 'uploads');
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(UPLOAD_DIR));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);

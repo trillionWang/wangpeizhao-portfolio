@@ -1,8 +1,14 @@
-# 部署流程
+# Render 部署流程
 
-当前项目是一个 React + Vite 前端和 Express 后端合在一起的 Node Web Service。生产环境由后端同时托管 `dist` 静态文件和 `/api/*` 接口。
+本项目是 React + Vite 前端和 Express 后端合并部署的 Node Web Service。生产环境由 Express 同时托管：
 
-## 1. 本地确认
+- 前端静态文件：`dist/`
+- 后端接口：`/api/*`
+- 上传文件：`/uploads/*`
+
+仓库已提供 `render.yaml`，可以用 Render Blueprint 自动创建服务、磁盘和环境变量占位。
+
+## 1. 本地验证
 
 ```bash
 npm install
@@ -11,84 +17,97 @@ npm run build
 npm start
 ```
 
-本地检查：
+本地访问：
 
 - 首页：`http://localhost:3001`
 - 健康检查：`http://localhost:3001/api/health`
-- 后台私密路径：默认 `http://localhost:3001/rua-studio/login`
+- 后台登录：`http://localhost:3001/rua-studio/login`
 
-开发时也可以分开启动：
-
-```bash
-npm run server
-npx vite --host 0.0.0.0
-```
-
-开发首页：`http://localhost:3000`
-
-## 2. 推送到 GitHub
+## 2. 推送代码
 
 ```bash
-git status
 git add .
-git commit -m "feat: update portfolio homepage and admin backend"
+git commit -m "chore: configure render deployment"
 git push origin main
 ```
 
-## 3. Render 部署
+## 3. 用 Blueprint 配置 Render
 
-在 Render 创建或更新 Web Service：
+1. 打开 Render Dashboard。
+2. 点击 **New +**。
+3. 选择 **Blueprint**。
+4. 连接 GitHub 仓库：`trillionWang/wangpeizhao-portfolio`。
+5. Render 会读取仓库根目录的 `render.yaml`。
+6. 按提示填写 `sync: false` 的敏感环境变量。
 
-- Runtime: `Node`
+`render.yaml` 已配置：
+
+- Runtime: `node`
 - Build Command: `npm install && npm run build`
 - Start Command: `npm start`
-- Branch: `main`
+- Health Check Path: `/api/health`
+- Persistent Disk: `/var/data`
+- Auto Deploy: `true`
 
-环境变量至少配置：
+## 4. 必填环境变量
+
+Render 创建 Blueprint 时会要求填写以下敏感变量：
+
+```bash
+ADMIN_PASSWORD=你的后台登录密码
+JWT_SECRET=一个足够长的随机字符串
+DEEPSEEK_API_KEY=你的 DeepSeek Key，可先留空
+```
+
+其他变量已在 `render.yaml` 中给默认值：
 
 ```bash
 NODE_ENV=production
 PORT=10000
-JWT_SECRET=换成一个足够长的随机字符串
-ADMIN_USER=admin
-ADMIN_PASSWORD=换成你的后台登录密码
+PERSISTENT_DIR=/var/data
 VITE_ADMIN_BASE=/rua-studio
+ADMIN_USER=admin
 ```
 
-`JWT_SECRET` 和 `ADMIN_PASSWORD` 在生产环境不能使用默认值，否则服务会拒绝启动。
+生产环境必须配置 `ADMIN_PASSWORD` 和 `JWT_SECRET`，否则服务会拒绝启动。
 
-## 4. 持久化数据
+## 5. 持久化说明
 
-当前第一版持久化使用本地文件：
+Render 的免费实例重建时，本地普通目录会丢失。项目已经改为通过 `PERSISTENT_DIR=/var/data` 使用 Persistent Disk：
 
-- 结构化数据：`data/db.json`
-- 上传文件：`uploads/`
+- 数据库文件：`/var/data/data/db.json`
+- 上传文件：`/var/data/uploads`
 
-如果部署到 Render，建议在服务里挂载 Persistent Disk，并把磁盘挂载到项目根目录下的数据目录，至少要覆盖：
+这会保存后台发布的文章、站点配置、项目资料、RAG 知识库、图片和音乐。
 
-- `/opt/render/project/src/data`
-- `/opt/render/project/src/uploads`
+## 6. 部署后验证
 
-没有持久化磁盘时，文章、后台配置、RAG 知识库、上传图片和音乐在服务重建后可能丢失。
-
-## 5. 部署后验证
-
-打开以下地址：
+部署完成后访问：
 
 - `https://你的域名/api/health`
 - `https://你的域名/`
 - `https://你的域名/rua-studio/login`
 
-后台登录后验证：
+验证重点：
 
-- 发布文章
-- 编辑项目
-- 上传图片或音乐
-- 新增 AI 知识库条目
+- 首页能打开。
+- `/api/health` 返回 `{"status":"ok"}`。
+- 后台登录可用。
+- 发布文章后刷新仍存在。
+- 上传图片后刷新仍存在。
+- `/api/config` 和 `/api/profile` 不返回 `deepseek_key`。
 
-公开页面验证：
+## 7. 绑定自定义域名
 
-- 导航栏不出现后台入口
-- 左上角品牌显示 `rua`
-- 左下角访客信息展示系统、浏览器、设备、屏幕和粗略地理位置
-- `/api/config` 和 `/api/profile` 不返回 `deepseek_key`
+在 Render 服务里进入 **Settings > Custom Domains**：
+
+1. 添加 `wangpeizhao.top`。
+2. 按 Render 给出的 DNS 记录去域名服务商配置。
+3. 等 DNS 生效和 SSL 证书签发完成。
+
+如果域名访问超时，优先检查：
+
+- Render 服务是否 Live。
+- Deploy Logs 是否有启动错误。
+- `ADMIN_PASSWORD` 和 `JWT_SECRET` 是否已配置。
+- 域名 DNS 是否指向 Render。

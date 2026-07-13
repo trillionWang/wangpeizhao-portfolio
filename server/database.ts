@@ -1,8 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 
-const DB_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DB_DIR, 'db.json');
+function getDbDir() {
+  return process.env.DATA_DIR || path.join(process.env.PERSISTENT_DIR || process.cwd(), 'data');
+}
+
+function getDbPath() {
+  return path.join(getDbDir(), 'db.json');
+}
 
 export interface UserRecord {
   id: number;
@@ -286,6 +291,8 @@ function normalizeSkill(item: Partial<SkillRecord>): SkillRecord {
 }
 
 function load() {
+  const DB_DIR = getDbDir();
+  const DB_PATH = getDbPath();
   if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) return;
 
@@ -308,16 +315,17 @@ function load() {
 }
 
 function save() {
+  const DB_DIR = getDbDir();
+  const DB_PATH = getDbPath();
   if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
   const tempPath = `${DB_PATH}.tmp`;
   fs.writeFileSync(tempPath, JSON.stringify(db, null, 2), 'utf-8');
   fs.renameSync(tempPath, DB_PATH);
 }
 
-load();
-
 export async function initDatabase() {
   const bcryptjs = await import('bcryptjs');
+  load();
 
   if (process.env.NODE_ENV === 'production') {
     if (!process.env.JWT_SECRET || process.env.JWT_SECRET.includes('change')) {
@@ -424,7 +432,7 @@ export async function initDatabase() {
   }
 
   save();
-  console.log('Database initialized at data/db.json');
+  console.log(`Database initialized at ${getDbPath()}`);
 }
 
 export type TableName = keyof DB;
