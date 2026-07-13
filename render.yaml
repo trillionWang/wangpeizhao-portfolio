@@ -14,8 +14,6 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: PERSISTENT_DIR
-        value: /var/data
       - key: VITE_ADMIN_BASE
         value: /rua-studio
       - key: ADMIN_USER
@@ -26,7 +24,3 @@ services:
         sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
-    disk:
-      name: portfolio-data
-      mountPath: /var/data
-      sizeGB: 1
