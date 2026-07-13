@@ -45,11 +45,11 @@ export default function About() {
           </h2>
           <div className="space-y-4 text-gray-600 dark:text-gray-300 leading-relaxed">
             <p>
-              嗨，我是 <strong className="text-gray-900 dark:text-white">ruaruarua coder</strong>，
-              一个在大学海洋中挣扎求生的过度思考者。
+              嗨，我是 <strong className="text-gray-900 dark:text-white">王沛钊</strong>，
+              正在准备秋招，目标方向是 Java 后端开发和 AI 应用工程化。
             </p>
             <p>
-              目前正在将屎山雕琢成艺术品的路上，专注于 <strong className="text-gray-900 dark:text-white">Java 后端开发</strong> 和 <strong className="text-gray-900 dark:text-white">AI Agent</strong> 领域的探索。
+              我关注 <strong className="text-gray-900 dark:text-white">Java 后端开发</strong>、工程化实践和 <strong className="text-gray-900 dark:text-white">AI Agent</strong> 方向，正在通过项目复盘、技术文章和持续迭代来沉淀能力。
             </p>
             <p>
               我相信好的代码不仅要能运行，更要优雅、可维护。在这里，我记录学习笔记、项目经验和技术思考，希望这些内容也能对你有所帮助。

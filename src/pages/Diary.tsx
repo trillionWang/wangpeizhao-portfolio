@@ -54,7 +54,7 @@ export default function Diary() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">日记</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">随时随地，分享生活</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">记录生活和学习片段；临时新增内容仅保存在当前浏览器</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -65,7 +65,7 @@ export default function Diary() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#4ade80] text-black text-sm font-medium hover:bg-[#22c55e] transition-colors"
             >
               <Plus className="w-4 h-4" />
-              写日记
+              临时写一条
             </button>
           </div>
         </div>

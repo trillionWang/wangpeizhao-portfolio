@@ -50,7 +50,7 @@ export default function Albums() {
     return Object.entries(grouped).map(([name, items]) => ({
       id: name,
       title: name,
-      description: items.find(item => item.description)?.description || '后台上传的照片记录',
+      description: items.find(item => item.description)?.description || '仓库内容文件中的照片记录',
       cover: items[0].url,
       photos: items.map(item => item.url),
       photoCount: items.length,

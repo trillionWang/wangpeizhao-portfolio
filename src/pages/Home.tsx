@@ -141,7 +141,7 @@ export default function Home() {
                   </div>
                 </Link>
               )) : (
-                <EmptyState text="后台添加项目后会展示在这里。" />
+                <EmptyState text="在 src/data/portfolio.ts 中添加项目后会展示在这里。" />
               )}
             </div>
           </Panel>
@@ -154,7 +154,7 @@ export default function Home() {
               ) : posts.length ? (
                 posts.slice(0, 8).map(post => <PostCard key={post.id} post={post} />)
               ) : (
-                <EmptyState text="暂无文章，登录后台发布后会显示在这里。" />
+                <EmptyState text="暂无文章，在 src/data/posts.ts 中添加后会显示在这里。" />
               )}
             </div>
           </Panel>
@@ -174,7 +174,7 @@ export default function Home() {
                       <div className="h-full rounded-full bg-gradient-to-r from-[#4ade80] to-cyan-300" style={{ width: `${Math.min(100, skill.level)}%` }} />
                     </div>
                   </div>
-                )) : <p className="text-sm text-gray-500">后台添加技能后会展示在这里。</p>}
+                )) : <p className="text-sm text-gray-500">在 src/data/portfolio.ts 中添加技能后会展示在这里。</p>}
               </div>
             </InfoCard>
 
