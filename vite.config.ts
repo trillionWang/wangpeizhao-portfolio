@@ -11,6 +11,13 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: [
+      'wangpeizhao-portfolio.onrender.com',
+      'wangpeizhao.top',
+      'www.wangpeizhao.top',
+    ],
+  },
   resolve: {
     alias: {
       '@': '/src',
