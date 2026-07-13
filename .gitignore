@@ -2,7 +2,7 @@ node_modules/
 .env
 .env.*
 !.env.example
-data/
-uploads/
+/data/
+/uploads/
 npm-debug.log*
 dist/**/*.map

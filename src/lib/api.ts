@@ -1,239 +1,280 @@
-const API_BASE = '/api';
-export const ADMIN_BASE = (import.meta.env.VITE_ADMIN_BASE || '/rua-studio').replace(/\/$/, '');
+import { posts as staticPosts } from '../data/posts';
+import { albums, media, songs } from '../data/content';
+import { knowledge, profileConfig, projects, skills } from '../data/portfolio';
 
-function getToken() {
-  return localStorage.getItem('admin_token');
+export const ADMIN_BASE = '/content-by-git';
+
+const messagesKey = 'rua_static_messages';
+
+function wait<T>(value: T) {
+  return Promise.resolve(value);
 }
 
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = getToken();
-  const isFormData = options.body instanceof FormData;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+function postForApi(post: (typeof staticPosts)[number]) {
+  return {
+    id: Number(post.id),
+    title: post.title,
+    slug: post.slug,
+    summary: post.summary,
+    content: post.content,
+    date: post.date,
+    category: post.category,
+    tags: post.tags,
+    cover: post.cover || '',
+    word_count: post.wordCount,
+    read_time: post.readTime,
+    published: 1,
+  };
+}
 
-  if (res.status === 401) {
-    localStorage.removeItem('admin_token');
-    window.location.href = `${ADMIN_BASE}/login`;
-    return null;
+function readLocalMessages() {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(messagesKey) || '[]');
+  } catch {
+    return [];
   }
-  return res;
 }
 
-export async function login(username: string, password: string) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-  const data = await res.json();
-  if (res.ok && data.token) localStorage.setItem('admin_token', data.token);
-  return data;
+function writeLocalMessages(messages: unknown[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(messagesKey, JSON.stringify(messages));
+}
+
+function staticModeError() {
+  return Promise.reject(new Error('当前站点为静态部署模式，请在仓库文件中更新内容后提交 Git。'));
+}
+
+export async function login() {
+  return { error: '静态部署模式没有在线后台，请通过 Git 更新内容。' };
 }
 
 export async function getMe() {
-  const res = await fetchWithAuth(`${API_BASE}/auth/me`);
-  if (!res) return null;
-  return res.json();
+  return null;
 }
 
 export function logout() {
-  localStorage.removeItem('admin_token');
-  window.location.href = `${ADMIN_BASE}/login`;
+  return undefined;
 }
 
 export async function getProfile() {
-  const res = await fetch(`${API_BASE}/profile`);
-  return res.json();
+  return wait({
+    ...profileConfig,
+    projects: projects.filter(project => project.public),
+    skills: skills.filter(skill => skill.public),
+  });
 }
 
 export async function getPublicProjects() {
-  const res = await fetch(`${API_BASE}/profile/projects`);
-  return res.json();
+  return wait(projects.filter(project => project.public).sort((a, b) => a.sort - b.sort));
 }
 
 export async function getPublicSkills() {
-  const res = await fetch(`${API_BASE}/profile/skills`);
-  return res.json();
+  return wait(skills.filter(skill => skill.public).sort((a, b) => a.sort - b.sort));
 }
 
 export async function getVisitorInfo() {
-  const res = await fetch(`${API_BASE}/visitor`);
-  return res.json();
+  const fallback = { location: '未知地区', isp: '' };
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    if (!res.ok) throw new Error('ipapi failed');
+    const data = await res.json();
+    const location = [data.city, data.region, data.country_name].filter(Boolean).join(' / ');
+    return {
+      location: location || fallback.location,
+      isp: data.org || '',
+    };
+  } catch {
+    try {
+      const res = await fetch('https://ipwho.is/');
+      const data = await res.json();
+      if (!data.success) return fallback;
+      const location = [data.city, data.region, data.country].filter(Boolean).join(' / ');
+      return {
+        location: location || fallback.location,
+        isp: data.connection?.isp || '',
+      };
+    } catch {
+      return fallback;
+    }
+  }
 }
 
 export async function getPosts() {
-  const res = await fetch(`${API_BASE}/posts`);
-  return res.json();
+  return wait(staticPosts.map(postForApi));
 }
 
 export async function getPost(slug: string) {
-  const res = await fetch(`${API_BASE}/posts/${slug}`);
-  return res.json();
+  const post = staticPosts.find(item => item.slug === slug);
+  return wait(post ? postForApi(post) : { error: '文章不存在' });
 }
 
-export async function createPost(post: any) {
-  const res = await fetchWithAuth(`${API_BASE}/posts`, { method: 'POST', body: JSON.stringify(post) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function updatePost(id: number, post: any) {
-  const res = await fetchWithAuth(`${API_BASE}/posts/${id}`, { method: 'PUT', body: JSON.stringify(post) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function deletePost(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/posts/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const createPost = staticModeError;
+export const updatePost = staticModeError;
+export const deletePost = staticModeError;
 
 export async function getConfig() {
-  const res = await fetch(`${API_BASE}/config`);
-  return res.json();
+  return wait(profileConfig);
 }
 
-export async function updateConfig(config: any) {
-  const res = await fetchWithAuth(`${API_BASE}/config`, { method: 'PUT', body: JSON.stringify(config) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const updateConfig = staticModeError;
 
 export async function getAIKeyStatus() {
-  const res = await fetchWithAuth(`${API_BASE}/config/ai-key`);
-  if (!res) return { hasKey: false };
-  return res.json();
+  return { hasKey: false, staticMode: true };
 }
 
-export async function updateAIKey(key: string) {
-  const res = await fetchWithAuth(`${API_BASE}/config/ai-key`, {
-    method: 'PUT',
-    body: JSON.stringify({ deepseek_key: key }),
-  });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const updateAIKey = staticModeError;
 
 export async function getKnowledge() {
-  const res = await fetchWithAuth(`${API_BASE}/knowledge`);
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
+  return wait(knowledge);
 }
 
-export async function createKnowledge(item: any) {
-  const res = await fetchWithAuth(`${API_BASE}/knowledge`, { method: 'POST', body: JSON.stringify(item) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function updateKnowledge(id: number, item: any) {
-  const res = await fetchWithAuth(`${API_BASE}/knowledge/${id}`, { method: 'PUT', body: JSON.stringify(item) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function deleteKnowledge(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/knowledge/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const createKnowledge = staticModeError;
+export const updateKnowledge = staticModeError;
+export const deleteKnowledge = staticModeError;
 
 export async function getPortfolioProjects() {
-  const res = await fetchWithAuth(`${API_BASE}/portfolio/projects`);
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
+  return getPublicProjects();
 }
 
-export async function createPortfolioProject(project: any) {
-  const res = await fetchWithAuth(`${API_BASE}/portfolio/projects`, { method: 'POST', body: JSON.stringify(project) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function updatePortfolioProject(id: number, project: any) {
-  const res = await fetchWithAuth(`${API_BASE}/portfolio/projects/${id}`, { method: 'PUT', body: JSON.stringify(project) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function deletePortfolioProject(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/portfolio/projects/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const createPortfolioProject = staticModeError;
+export const updatePortfolioProject = staticModeError;
+export const deletePortfolioProject = staticModeError;
 
 export async function getSongs() {
-  const res = await fetch(`${API_BASE}/songs`);
-  return res.json();
+  return wait(songs);
 }
 
-export async function createSong(song: any) {
-  const res = await fetchWithAuth(`${API_BASE}/songs`, { method: 'POST', body: JSON.stringify(song) });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function deleteSong(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/songs/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const createSong = staticModeError;
+export const deleteSong = staticModeError;
 
 export async function getMessages() {
-  const res = await fetch(`${API_BASE}/messages`);
-  return res.json();
+  const seed = [
+    {
+      id: 1,
+      name: 'rua',
+      content: '欢迎来到留言板。静态部署下留言会保存在当前浏览器，本人内容更新会通过 Git 提交。',
+      date: '2026-07-12',
+    },
+  ];
+  return wait([...seed, ...readLocalMessages()]);
 }
 
 export async function createMessage(name: string, content: string) {
-  const res = await fetch(`${API_BASE}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, content }),
-  });
-  return res.json();
+  const messages = readLocalMessages();
+  const message = {
+    id: Date.now(),
+    name,
+    content,
+    date: new Date().toISOString().slice(0, 10),
+  };
+  writeLocalMessages([message, ...messages]);
+  return wait(message);
 }
 
-export async function deleteMessage(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/messages/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
+export const deleteMessage = staticModeError;
+
+function findRelevantKnowledge(message: string) {
+  const q = message.toLowerCase();
+  const corpus = [
+    ...knowledge.map(item => ({
+      title: item.title,
+      content: item.content,
+      tags: item.tags,
+    })),
+    ...projects.map(project => ({
+      title: project.title,
+      content: `${project.summary} ${project.description} 技术栈：${project.techStack.join('、')}。亮点：${project.highlights.join('、')}。`,
+      tags: project.techStack,
+    })),
+    ...skills.map(skill => ({
+      title: skill.name,
+      content: `${skill.category}能力：${skill.description}`,
+      tags: skill.keywords,
+    })),
+    ...staticPosts.map(post => ({
+      title: post.title,
+      content: `${post.summary} ${post.tags.join('、')}`,
+      tags: post.tags,
+    })),
+  ];
+
+  return corpus
+    .map(item => {
+      const haystack = `${item.title} ${item.content} ${item.tags.join(' ')}`.toLowerCase();
+      const score = [...new Set(q.split(/\s+|，|。|、|,|\?/).filter(Boolean))]
+        .reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
+      return { ...item, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
 }
 
 export async function chatWithAI(message: string) {
-  const res = await fetch(`${API_BASE}/ai/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+  const q = message.toLowerCase();
+
+  if (/联系方式|邮箱|email|github|联系/.test(q)) {
+    return wait({
+      content: `可以通过 GitHub 和邮箱联系王沛钊：\n- GitHub：${profileConfig.github}\n- Email：${profileConfig.email}`,
+      staticMode: true,
+    });
+  }
+
+  if (/项目|作品|经历|project/.test(q)) {
+    return wait({
+      content: `目前重点展示这些项目：\n${projects
+        .filter(project => project.public)
+        .map(project => `- ${project.title}：${project.summary} 技术栈：${project.techStack.join('、')}`)
+        .join('\n')}`,
+      staticMode: true,
+    });
+  }
+
+  if (/技能|技术栈|能力|skill/.test(q)) {
+    return wait({
+      content: `他的核心技术栈包括：\n${skills
+        .filter(skill => skill.public)
+        .map(skill => `- ${skill.name}（${skill.category}）：${skill.description}`)
+        .join('\n')}`,
+      staticMode: true,
+    });
+  }
+
+  if (/文章|博客|记录|post/.test(q)) {
+    return wait({
+      content: `站内最近的文章/记录：\n${staticPosts
+        .slice(0, 5)
+        .map(post => `- ${post.title}（${post.category}）：${post.summary}`)
+        .join('\n')}`,
+      staticMode: true,
+    });
+  }
+
+  if (/照片|相册|音乐|生活/.test(q)) {
+    return wait({
+      content: `生活记录入口包括相册、日记、音乐和留言板。目前有 ${albums.length} 个相册、${songs.length} 首音乐，内容通过仓库文件长期保存。`,
+      staticMode: true,
+    });
+  }
+
+  const matches = findRelevantKnowledge(message);
+  if (matches.length) {
+    return wait({
+      content: matches.map(item => `- ${item.title}：${item.content}`).join('\n'),
+      staticMode: true,
+    });
+  }
+
+  return wait({
+    content: '我是王沛钊个人主页的静态 AI 助手，可以回答他的项目、技术栈、联系方式、文章记录和生活内容。当前站点不连接外部大模型，因此不会暴露 API Key。',
+    staticMode: true,
   });
-  return res.json();
 }
 
 export async function getUploads() {
-  const res = await fetch(`${API_BASE}/uploads`);
-  return res.json();
+  return wait(media);
 }
 
-export async function uploadFile(file: File, meta: { title?: string; album?: string; description?: string } = {}) {
-  const formData = new FormData();
-  formData.append('file', file);
-  Object.entries(meta).forEach(([key, value]) => {
-    if (value) formData.append(key, value);
-  });
-
-  const res = await fetchWithAuth(`${API_BASE}/uploads`, { method: 'POST', body: formData });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
-
-export async function deleteUpload(id: number) {
-  const res = await fetchWithAuth(`${API_BASE}/uploads/${id}`, { method: 'DELETE' });
-  if (!res) throw new Error('Unauthorized');
-  return res.json();
-}
+export const uploadFile = staticModeError;
+export const deleteUpload = staticModeError;

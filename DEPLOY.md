@@ -1,92 +1,75 @@
-# Render 免费部署流程
+# 静态部署流程
 
-当前仓库已经提供 `render.yaml`，用于 Render Blueprint 免费部署。
+当前站点已经改为静态站点：内容保存在仓库文件中，部署平台只负责构建 `dist`。这种方式和 OverThinker / X-Plore 的更新逻辑更接近，不需要数据库、后台服务、JWT、Render 磁盘或在线上传接口。
 
-## 1. 在 Render 页面怎么填
+## Render Blueprint 填写
 
 - Blueprint Name: `rua`
 - Branch: `main`
-- Blueprint Path: 留空，或者填 `render.yaml`
+- Blueprint Path: 留空，或填写 `render.yaml`
 
-现在的 `render.yaml` 使用 `plan: free`，并且已经移除了 Persistent Disk，所以不会再出现 `disks are not supported for free tier services`。
-
-## 2. Render 会自动读取的配置
-
-- Runtime: `node`
-- Build Command: `npm install && npm run build`
-- Start Command: `npm start`
-- Health Check Path: `/api/health`
-- Auto Deploy: `true`
-- Admin Path: `/rua-studio`
-
-## 3. 需要手动填写的环境变量
-
-Render 页面会提示填写这些 `sync: false` 变量：
-
-```bash
-ADMIN_PASSWORD=你的后台登录密码
-JWT_SECRET=一个足够长的随机字符串
-DEEPSEEK_API_KEY=你的 DeepSeek Key，可以先留空
-```
-
-建议：
-
-- `ADMIN_PASSWORD` 不要用简单密码。
-- `JWT_SECRET` 至少 32 位，可以用随机字母数字符号。
-- `DEEPSEEK_API_KEY` 没有也可以先空着，AI 助手会走降级回答。
-
-## 4. 免费方案的数据限制
-
-Render 免费服务不能挂 Persistent Disk，所以当前免费部署下：
-
-- 后台发布的文章可能在服务重建后丢失。
-- 上传的图片、音乐可能在服务重建后丢失。
-- 后台配置和 RAG 知识库可能在服务重建后丢失。
-
-这不影响你先把网站跑起来。等你确认长期使用，再升级 Render 套餐并重新开启磁盘持久化。
-
-## 5. 部署后验证
-
-部署完成后访问：
-
-- `https://你的域名/api/health`
-- `https://你的域名/`
-- `https://你的域名/rua-studio/login`
-
-如果 `/api/health` 返回：
-
-```json
-{"status":"ok"}
-```
-
-说明后端启动成功。
-
-## 6. 自定义域名
-
-在 Render 服务页面进入 **Settings > Custom Domains**：
-
-1. 添加 `wangpeizhao.top`。
-2. 按 Render 给出的 DNS 记录去域名服务商配置。
-3. 等 DNS 生效和 SSL 证书签发完成。
-
-如果域名访问超时，优先检查：
-
-- Render 服务是否为 Live。
-- Deploy Logs 是否报错。
-- `ADMIN_PASSWORD` 和 `JWT_SECRET` 是否已填写。
-- 域名 DNS 是否已经指向 Render。
-
-## 7. 后续升级持久化
-
-如果以后要保存后台数据，需要升级 Render 套餐，然后在 `render.yaml` 里加回：
+Render 会读取仓库根目录的 `render.yaml`：
 
 ```yaml
-      - key: PERSISTENT_DIR
-        value: /var/data
-    disk:
-      name: portfolio-data
-      mountPath: /var/data
-      sizeGB: 1
+services:
+  - type: web
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
 ```
 
-代码已经支持 `PERSISTENT_DIR`，后续只需要改 Render 配置即可。
+不需要填写这些环境变量：
+
+- `PORT`
+- `JWT_SECRET`
+- `ADMIN_PASSWORD`
+- `DEEPSEEK_API_KEY`
+- `PERSISTENT_DIR`
+
+## 手动创建 Static Site
+
+如果不用 Blueprint，也可以在 Render 手动创建：
+
+- Service Type: Static Site
+- Build Command: `npm install && npm run build`
+- Publish Directory: `dist`
+- Auto Deploy: Yes
+- Branch: `main`
+- Rewrite Rule: `/*` -> `/index.html`
+
+## 内容更新方式
+
+以后更新文章、项目、相册、音乐和 AI 知识，不在网页后台操作，而是在本地改仓库文件：
+
+- 文章：`src/data/posts.ts`
+- 项目、技能、AI 知识：`src/data/portfolio.ts`
+- 相册、日记、音乐：`src/data/content.ts`
+- 图片资源：建议放在 `public/images/`
+- 音乐资源：建议放在 `public/music/`
+
+更新后执行：
+
+```bash
+npm run build
+git add .
+git commit -m "content: update portfolio"
+git push origin main
+```
+
+推送到 GitHub 后，Render 会自动重新部署。
+
+## 本地验证
+
+```bash
+npm run dev
+npm run build
+```
+
+本地开发地址通常是 `http://localhost:5173/`。
+
+## 当前静态模式的功能边界
+
+- 留言板：可以提交，但只保存在当前访客浏览器的 `localStorage`，不会公开写入服务器。
+- AI 助手：使用站内静态资料做本地检索回答，不连接 DeepSeek，避免前端暴露 API Key。
+- 访客地理位置：浏览器端调用公开 IP 归属地服务，失败时会降级为“未知地区”。
+- 在线后台：已从运行路由中移除，内容通过 Git 更新和持久化。

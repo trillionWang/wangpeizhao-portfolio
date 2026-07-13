@@ -23,18 +23,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (isOpen) onClose();
-        else onClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   const results = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
