@@ -21,11 +21,13 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     res.status(401).json({ error: '未登录' });
     return;
   }
+
   const decoded = verifyToken(token);
   if (!decoded) {
     res.status(401).json({ error: '登录已过期' });
     return;
   }
+
   (req as any).user = decoded;
   next();
 }

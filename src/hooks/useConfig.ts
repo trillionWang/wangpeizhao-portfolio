@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getConfig } from '../lib/api';
 
-interface SiteConfig {
+export interface SiteConfig {
+  brand: string;
   avatar: string;
   author: string;
   nickname: string;
@@ -10,17 +11,24 @@ interface SiteConfig {
   announcement: string;
   github: string;
   email: string;
+  location: string;
+  targetRole: string;
+  heroImage: string;
 }
 
 const defaultConfig: SiteConfig = {
+  brand: 'rua',
   avatar: '',
-  author: 'ruaruarua coder',
-  nickname: '@Rua',
-  bio: 'Java后端 | AI Agent探索者',
-  subtitle: '「吃个面皮」',
-  announcement: '欢迎来到我的博客！目前正在寻找 Java 后端开发工程师的实习/全职机会。',
-  github: 'https://github.com/wangpeizhao',
+  author: '王沛钊',
+  nickname: '@trillionWang',
+  bio: 'Java 后端开发 / AI Agent 探索者 / 秋招求职中',
+  subtitle: '面向后端工程、AI 应用和复杂业务系统的持续构建者',
+  announcement: '这里是我的在线简历、项目展示和生活记录入口。',
+  github: 'https://github.com/trillionWang',
   email: '',
+  location: '中国',
+  targetRole: 'Java 后端开发工程师 / AI 应用工程师',
+  heroImage: '',
 };
 
 export function useConfig() {
@@ -31,7 +39,7 @@ export function useConfig() {
     getConfig().then(data => {
       if (data) setConfig({ ...defaultConfig, ...data });
     }).catch(() => {
-      // Use defaults on error
+      setConfig(defaultConfig);
     }).finally(() => {
       setLoading(false);
     });

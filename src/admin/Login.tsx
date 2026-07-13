@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Shield, AlertCircle } from 'lucide-react';
-import { login } from '../lib/api';
+import { ADMIN_BASE, login } from '../lib/api';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -10,19 +10,16 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
     setLoading(true);
     try {
       const data = await login(username, password);
-      if (data.token) {
-        navigate('/admin');
-      } else {
-        setError(data.error || '登录失败');
-      }
+      if (data.token) navigate(ADMIN_BASE);
+      else setError(data.error || '登录失败');
     } catch {
-      setError('网络错误，请检查后端服务是否启动');
+      setError('网络错误，请检查后端服务是否启动。');
     } finally {
       setLoading(false);
     }
@@ -32,11 +29,11 @@ export default function Login() {
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-green-600 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">管理后台</h1>
-          <p className="text-gray-500 mt-1">ruaruarua coder Blog Admin</p>
+          <h1 className="text-2xl font-bold text-white">rua studio</h1>
+          <p className="text-gray-500 mt-1">私有内容管理后台</p>
         </div>
 
         <div className="rounded-2xl bg-[#151515] border border-white/5 p-6">
@@ -53,8 +50,8 @@ export default function Login() {
               <input
                 type="text"
                 value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="admin"
+                onChange={event => setUsername(event.target.value)}
+                autoComplete="username"
                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#4ade80]/50 text-sm"
                 required
               />
@@ -64,8 +61,8 @@ export default function Login() {
               <input
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="admin123"
+                onChange={event => setPassword(event.target.value)}
+                autoComplete="current-password"
                 className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-[#4ade80]/50 text-sm"
                 required
               />
@@ -78,10 +75,6 @@ export default function Login() {
               {loading ? '登录中...' : <><LogIn className="w-4 h-4" /> 登录</>}
             </button>
           </form>
-
-          <div className="mt-4 text-center text-xs text-gray-600">
-            默认账号: admin / admin123
-          </div>
         </div>
       </div>
     </div>

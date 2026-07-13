@@ -71,7 +71,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+::selection {
+  background: rgba(74, 222, 128, 0.35);
 }
 
 /* Custom scrollbar */
@@ -138,4 +143,21 @@ html {
 }
 .animate-pulse-glow {
   animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.prose-content p {
+  margin: 0;
+}
+
+.prose-content code {
+  border-radius: 6px;
+  background: rgba(74, 222, 128, 0.12);
+  padding: 0.15rem 0.35rem;
+  color: #16a34a;
+}
+
+.prose-content a {
+  color: #16a34a;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }

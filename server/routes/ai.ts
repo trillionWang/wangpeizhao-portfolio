@@ -1,58 +1,188 @@
 import { Router } from 'express';
 import axios from 'axios';
-import { getConfig } from '../database';
+import {
+  findAll,
+  getConfig,
+  getPublicProfile,
+  KnowledgeRecord,
+  PortfolioProjectRecord,
+  PostRecord,
+  SkillRecord,
+} from '../database';
 
 const router = Router();
 
-const mockResponses: Record<string, string> = {
-  '帮我写一篇关于Spring Boot的入门教程': '好的！以下是Spring Boot入门教程大纲：\n\n## 1. 什么是Spring Boot\nSpring Boot是一个简化Spring应用开发的框架...\n\n## 2. 快速开始\n使用Spring Initializr创建项目...\n\n## 3. 自动配置原理\n@SpringBootApplication注解解析...\n\n## 4. 常用 Starter\n- spring-boot-starter-web\n- spring-boot-starter-data-jpa\n- spring-boot-starter-redis',
-  '解释一下Redis缓存穿透、击穿、雪崩的区别': '## 缓存穿透\n查询不存在的数据，每次都直达数据库。\n**解决方案**：布隆过滤器 + 缓存空值\n\n## 缓存击穿\n热点key突然失效，大量请求打到数据库。\n**解决方案**：互斥锁 + 逻辑过期\n\n## 缓存雪崩\n大量key同时过期，数据库压力骤增。\n**解决方案**：随机过期时间 + 多级缓存',
-  '什么是DDD领域驱动设计？': 'DDD（Domain-Driven Design）核心思想：\n\n- **实体（Entity）**：有唯一标识的对象\n- **值对象（Value Object）**：无标识，通过属性判断相等\n- **聚合（Aggregate）**：一组相关对象的集合\n- **领域服务（Domain Service）**：处理跨实体业务逻辑\n- **仓储（Repository）**：数据访问抽象',
-  '给我制定一个Java后端学习路线': '## Java后端学习路线\n\n### 阶段一：基础（1-2个月）\n- JavaSE核心语法、面向对象、集合框架\n- IO/NIO、多线程与并发\n\n### 阶段二：数据库（1个月）\n- MySQL基础与进阶、SQL优化\n- Redis缓存\n\n### 阶段三：框架（2-3个月）\n- Spring Framework、Spring Boot\n- MyBatis-Plus、Spring Security\n\n### 阶段四：进阶\n- 消息队列（Kafka/RocketMQ）\n- 微服务（Spring Cloud）\n- Docker/K8s、DDD架构',
-};
+const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_profile',
+      description: '查询王沛钊的公开个人简介、求职方向和联系方式。',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_projects',
+      description: '查询王沛钊的公开项目经历、技术栈、亮点和成果。',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_skills',
+      description: '查询王沛钊的技术栈、技能分类和掌握程度。',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_recent_posts',
+      description: '查询最近公开文章和生活记录摘要。',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+];
 
 router.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const message = String(req.body?.message || '').trim();
     if (!message) {
       res.status(400).json({ error: '请输入消息' });
       return;
     }
 
     const config = getConfig();
-    const apiKey = config.deepseek_key;
+    const context = buildContext(message);
 
-    if (!apiKey) {
-      const response = mockResponses[message] || `关于"${message}"，我可以帮你查找相关技术文档、提供代码示例、分析最佳实践。请在后台配置DeepSeek API Key以获得更智能的回复！`;
-      res.json({ content: response });
+    if (!config.deepseek_key) {
+      res.json({ content: localAnswer(message, context) });
       return;
     }
 
-    const response = await axios.post(
-      'https://api.deepseek.com/v1/chat/completions',
-      {
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: '你是一个专业的技术助手，擅长Java后端开发、AI Agent、数据结构和系统设计。请用中文回答。' },
-          { role: 'user', content: message },
-        ],
-        stream: false,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
-      }
-    );
+    const baseMessages: any[] = [
+      { role: 'system', content: systemPrompt(context) },
+      { role: 'user', content: message },
+    ];
 
-    const content = response.data.choices?.[0]?.message?.content || '暂无回复';
-    res.json({ content });
+    const first = await callDeepSeek(config.deepseek_key, baseMessages, true);
+    const firstMessage = first.data.choices?.[0]?.message;
+
+    if (firstMessage?.tool_calls?.length) {
+      const toolMessages = firstMessage.tool_calls.map((call: any) => ({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: JSON.stringify(runTool(call.function?.name), null, 2),
+      }));
+      const second = await callDeepSeek(config.deepseek_key, [...baseMessages, firstMessage, ...toolMessages], false);
+      res.json({ content: second.data.choices?.[0]?.message?.content || '暂时没有生成回复。' });
+      return;
+    }
+
+    res.json({ content: firstMessage?.content || '暂时没有生成回复。' });
   } catch (err: any) {
     console.error('AI API error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'AI服务调用失败，请检查API Key是否正确' });
+    res.status(500).json({ error: 'AI 服务调用失败，请检查 API Key 或稍后再试。' });
   }
 });
+
+function callDeepSeek(apiKey: string, messages: any[], useTools: boolean) {
+  return axios.post(
+    'https://api.deepseek.com/v1/chat/completions',
+    {
+      model: 'deepseek-chat',
+      messages,
+      stream: false,
+      ...(useTools ? { tools, tool_choice: 'auto' } : {}),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    },
+  );
+}
+
+function systemPrompt(context: string) {
+  return [
+    '你是王沛钊个人主页上的 AI 助手，面向 HR、面试官、同学和访客。',
+    '你的任务是介绍他的项目、技术能力、经历和生活记录，回答要真实、克制、具体。',
+    '只使用公开信息和检索到的上下文，不要编造学校、公司、奖项、联系方式或隐私。',
+    '如果问题涉及后台、密钥、未公开信息或隐私，礼貌拒绝。',
+    '可通过工具查询公开资料、项目、技能和文章摘要。',
+    `检索上下文：\n${context || '暂无额外上下文。'}`,
+  ].join('\n');
+}
+
+function buildContext(query: string) {
+  const searchable = [
+    ...findAll<KnowledgeRecord>('knowledge').filter(item => item.public !== 0).map(item => ({
+      title: item.title,
+      body: `${item.category} ${item.tags.join(' ')} ${item.content}`,
+    })),
+    ...findAll<PortfolioProjectRecord>('projects').filter(item => item.public !== 0).map(item => ({
+      title: item.title,
+      body: `${item.summary} ${item.description} ${item.techStack.join(' ')} ${item.highlights.join(' ')}`,
+    })),
+    ...findAll<SkillRecord>('skills').filter(item => item.public !== 0).map(item => ({
+      title: item.name,
+      body: `${item.category} ${item.description} ${item.keywords.join(' ')}`,
+    })),
+    ...findAll<PostRecord>('posts').filter(item => item.published !== 0).map(item => ({
+      title: item.title,
+      body: `${item.summary} ${item.tags.join(' ')} ${item.content}`,
+    })),
+  ];
+
+  const terms = query.toLowerCase().split(/\s+|，|,|。|\?|？/).filter(Boolean);
+  return searchable
+    .map(item => ({
+      ...item,
+      score: terms.reduce((sum, term) => sum + (`${item.title} ${item.body}`.toLowerCase().includes(term) ? 1 : 0), 0),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map(item => `### ${item.title}\n${item.body.slice(0, 900)}`)
+    .join('\n\n');
+}
+
+function runTool(name: string) {
+  const publicProfile = getPublicProfile();
+  if (name === 'get_profile') return publicProfile.config;
+  if (name === 'get_projects') return publicProfile.projects;
+  if (name === 'get_skills') return publicProfile.skills;
+  if (name === 'get_recent_posts') return publicProfile.posts;
+  return { error: 'Unknown tool' };
+}
+
+function localAnswer(message: string, context: string) {
+  const profile = getPublicProfile();
+  const text = message.toLowerCase();
+
+  if (/项目|project|经历/.test(text)) {
+    const projects = profile.projects.slice(0, 3).map(project => `- ${project.title}：${project.summary}`).join('\n');
+    return `我可以介绍王沛钊的重点项目：\n${projects}\n\n如果你想看某个项目的技术栈、难点或成果，可以继续追问。`;
+  }
+
+  if (/技能|技术|tech|java|agent|rag/.test(text)) {
+    const skills = profile.skills.map(skill => `- ${skill.name}：${skill.description}`).join('\n');
+    return `他的主要技术能力包括：\n${skills}`;
+  }
+
+  if (/联系|邮箱|github/.test(text)) {
+    return `可以通过 GitHub ${profile.config.github || '暂未配置'} ${profile.config.email ? `或邮箱 ${profile.config.email}` : ''} 了解更多。`;
+  }
+
+  return [
+    `你好，我是王沛钊个人主页的 AI 助手。当前未配置 DeepSeek API Key，所以我会基于本地公开资料回答。`,
+    `他的目标方向是：${profile.config.targetRole}。`,
+    context ? `我检索到的相关资料：\n${context.slice(0, 1200)}` : '你可以问我他的项目、技术栈、文章记录或联系方式。',
+  ].join('\n\n');
+}
 
 export default router;

@@ -10,6 +10,7 @@ export interface Post {
   date: string;
   category: string;
   tags: string[];
+  cover?: string;
   word_count: number;
   read_time: number;
   published: number;

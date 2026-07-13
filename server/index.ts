@@ -9,58 +9,62 @@ import configRoutes from './routes/config';
 import songRoutes from './routes/songs';
 import messageRoutes from './routes/messages';
 import aiRoutes from './routes/ai';
+import uploadRoutes from './routes/uploads';
+import profileRoutes from './routes/profile';
+import knowledgeRoutes from './routes/knowledge';
+import portfolioRoutes from './routes/portfolio';
+import visitorRoutes from './routes/visitor';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/songs', songRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/visitor', visitorRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(process.cwd(), 'dist')));
   app.use((req, res) => {
+    if (req.path.startsWith('/api')) {
+      res.status(404).json({ error: 'API 不存在' });
+      return;
+    }
     res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
   });
 }
 
-// Error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ error: '服务器内部错误' });
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: err.message || '服务器内部错误' });
 });
 
-// Start server
 async function start() {
   await initDatabase();
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`API docs:`);
-    console.log(`  POST /api/auth/login`);
-    console.log(`  GET  /api/posts`);
-    console.log(`  GET  /api/config`);
-    console.log(`  GET  /api/songs`);
-    console.log(`  GET  /api/messages`);
-    console.log(`  POST /api/ai/chat`);
-    console.log(`  GET  /api/health`);
+    console.log('Admin route is hidden from the public UI. Configure VITE_ADMIN_BASE for the private frontend path.');
   });
 }
 
-start().catch(console.error);
+start().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
